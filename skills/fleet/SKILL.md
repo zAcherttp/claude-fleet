@@ -25,9 +25,13 @@ must launch now (below).
 ## Delegate a task (any session)
 
 ```bash
-fleet enqueue --title "<imperative, under 60 chars>" --key <owner/repo#123> --cwd <repo root> --prompt-file <file>
+fleet enqueue --title "<imperative, under 60 chars>" --key <owner/repo#123> --cwd <repo root> --prompt-file <file> --notify <your session id>
 ```
 
+- `--notify` is how you hear back. The app only tells a spawning session when a
+  task *ends*; a PR turning mergeable or a session stopping on a question is
+  otherwise invisible until someone reads the board. Pass your own session id
+  (the session-info tool gives it) whenever you are waiting on the result.
 - `--key` names the thing being worked on (an issue, a ticket). A key already
   queued or running is refused with who holds it — do not start it yourself.
 - The prompt file must stand alone: what to do, where, how to know it is done,
@@ -77,7 +81,12 @@ minutes goes back to the queue (`fleet sweep`).
    armed when the app offers it. When checks are green and review threads are
    resolved: `fleet state <id> mergeable --pr <url>`, launch what it returns, and
    end the turn with one line saying the PR is ready.
-6. **Resuming after an answer:** `fleet state <id> working` first. If the pool is
+6. **Tell the enqueuer.** When `join` or a halting `state` (question, mergeable,
+   done) returns a `notify` session id, send that session one line
+   (`SendMessage` to the id): task id, new state, and the PR link or the
+   one-line question. It is a notice, not a relay: the user still answers here.
+   Don't wait for a reply.
+7. **Resuming after an answer:** `fleet state <id> working` first. If the pool is
    full it still records you — the slot count may briefly exceed `max`; that is
    the only way a halted session gets back to work.
 
@@ -88,7 +97,8 @@ minutes goes back to the queue (`fleet sweep`).
 2. Delete the merged branch locally, and on the remote if the merge did not.
 3. Leave the worktree: `git worktree remove <path>` from the main checkout, or
    let the app remove it when the session is archived.
-4. `fleet state <id> done` and launch what it returns.
+4. `fleet state <id> done`, launch what it returns, and tell the `notify`
+   session if it names one.
 5. Archive this session when the app allows it (the PR monitor's
    auto-archive-on-close switch does it on merge).
 
@@ -99,7 +109,7 @@ databases are never yours to clean.
 
 | Command | Does |
 |---|---|
-| `fleet enqueue --title --key --cwd --prompt-file` | add a task; launches it if a slot is free |
+| `fleet enqueue --title --key --cwd --prompt-file [--notify]` | add a task; launches it if a slot is free |
 | `fleet next` | fill free slots from the queue; prints what to launch |
 | `fleet join <id> --session --name --worktree` | bind this session to its task |
 | `fleet state <id> working\|question\|mergeable\|done [--note] [--pr]` | report; halting states free the slot and return the next launch |
