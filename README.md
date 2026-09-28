@@ -7,6 +7,8 @@ without them stepping on each other.
 - **Hear back, without a relay.** Enqueue with `--notify <session>` and the
   task tells that session when it is done, given up or lost, or files an issue.
   Questions and "PR ready" stay with the task's own session.
+- **Findings enqueue themselves.** A session that turns up a new issue files it
+  and enqueues it, and tells the enqueuer the task id, so nobody picks it up twice.
 - **A pool, not a stampede.** At most 5 run at once (configurable); the rest queue.
 - **No idle slots.** A session frees its slot the moment it halts — a question
   for you, a mergeable PR, or done — and launches the next queued task itself.

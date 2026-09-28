@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "fleet",
   "displayName": "Fleet",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Run a pool of parallel Claude Code sessions, one task each: a queue any session can delegate into, at most N running at once, the next task launched the moment one halts, a shared board of who holds which files, and messaging between sessions.",
   "author": { "name": "zAcherttp" },
   "repository": "https://github.com/zAcherttp/claude-fleet",
