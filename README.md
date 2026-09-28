@@ -4,8 +4,9 @@ A Claude Code plugin for running several sessions in parallel, one task each,
 without them stepping on each other.
 
 - **Delegate from anywhere.** Any session can `fleet enqueue` a task.
-- **Hear back.** Enqueue with `--notify <session>` and the task messages that
-  session each time it stops: on a question, a mergeable PR, or done.
+- **Hear back, without a relay.** Enqueue with `--notify <session>` and the
+  task tells that session when it is done, given up or lost, or files an issue.
+  Questions and "PR ready" stay with the task's own session.
 - **A pool, not a stampede.** At most 5 run at once (configurable); the rest queue.
 - **No idle slots.** A session frees its slot the moment it halts — a question
   for you, a mergeable PR, or done — and launches the next queued task itself.
@@ -60,9 +61,9 @@ States: `queued → launching → working → question | mergeable → done`, pl
 fleet --self-test
 ```
 
-12 checks: the pool limit, the queue position, duplicate keys refused, a halt
-freeing its slot and returning the next launch, the enqueuer named on every halt
-and on nothing else, stale launches requeued, lost
+13 checks: the pool limit, the queue position, duplicate keys refused, a halt
+freeing its slot and returning the next launch, the enqueuer named on done, release
+and a lost worktree but never on a question or mergeable, stale launches requeued, lost
 worktrees, overlap detection, a held lock blocking a writer, a dead holder's lock
 taken over, and six concurrent enqueues of one key producing exactly one task.
 

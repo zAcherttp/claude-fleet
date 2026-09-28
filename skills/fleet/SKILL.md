@@ -28,10 +28,10 @@ must launch now (below).
 fleet enqueue --title "<imperative, under 60 chars>" --key <owner/repo#123> --cwd <repo root> --prompt-file <file> --notify <your session id>
 ```
 
-- `--notify` is how you hear back. The app only tells a spawning session when a
-  task *ends*; a PR turning mergeable or a session stopping on a question is
-  otherwise invisible until someone reads the board. Pass your own session id
-  (the session-info tool gives it) whenever you are waiting on the result.
+- `--notify <your session id>` (the session-info tool gives it) is how you hear
+  what you can act on: a task finished, given up or lost, and any issue it
+  filed. Questions and "PR ready" are not sent — the task's own session puts
+  those to the user itself.
 - `--key` names the thing being worked on (an issue, a ticket). A key already
   queued or running is refused with who holds it — do not start it yourself.
 - The prompt file must stand alone: what to do, where, how to know it is done,
@@ -81,11 +81,12 @@ minutes goes back to the queue (`fleet sweep`).
    armed when the app offers it. When checks are green and review threads are
    resolved: `fleet state <id> mergeable --pr <url>`, launch what it returns, and
    end the turn with one line saying the PR is ready.
-6. **Tell the enqueuer.** When `join` or a halting `state` (question, mergeable,
-   done) returns a `notify` session id, send that session one line
-   (`SendMessage` to the id): task id, new state, and the PR link or the
-   one-line question. It is a notice, not a relay: the user still answers here.
-   Don't wait for a reply.
+6. **Tell the enqueuer only what it acts on.** `join` returns `notify`, the
+   session that delegated this task. Send it one line (`SendMessage` to the id,
+   no reply awaited) when you file a new issue, and when `done` or `release`
+   returns `notify`: task id, state, the PR, whether the issue closed, and any
+   issue filed. Never for a question or a mergeable PR: those go to the user
+   here, not through another session.
 7. **Resuming after an answer:** `fleet state <id> working` first. If the pool is
    full it still records you — the slot count may briefly exceed `max`; that is
    the only way a halted session gets back to work.
@@ -97,8 +98,8 @@ minutes goes back to the queue (`fleet sweep`).
 2. Delete the merged branch locally, and on the remote if the merge did not.
 3. Leave the worktree: `git worktree remove <path>` from the main checkout, or
    let the app remove it when the session is archived.
-4. `fleet state <id> done`, launch what it returns, and tell the `notify`
-   session if it names one.
+4. `fleet state <id> done`, launch what it returns, and send the `notify`
+   session its one line.
 5. Archive this session when the app allows it (the PR monitor's
    auto-archive-on-close switch does it on merge).
 
@@ -113,9 +114,9 @@ databases are never yours to clean.
 | `fleet next` | fill free slots from the queue; prints what to launch |
 | `fleet join <id> --session --name --worktree` | bind this session to its task |
 | `fleet state <id> working\|question\|mergeable\|done [--note] [--pr]` | report; halting states free the slot and return the next launch |
-| `fleet release <id>` | give a task up unfinished |
+| `fleet release <id>` | give a task up unfinished; tell the `notify` session why |
 | `fleet board [--json]` | slots, running sessions, overlaps, queue |
-| `fleet sweep` | requeue launches nobody joined; mark tasks whose worktree is gone `lost` |
+| `fleet sweep` | requeue launches nobody joined; mark tasks whose worktree is gone `lost`, and message each `notify` it returns |
 | `fleet config [--max n] [--launch-timeout-min n]` | pool settings |
 | `fleet --self-test` | prove the pool, queue, lock and overlap rules still hold |
 
