@@ -1,0 +1,8 @@
+{
+  "name": "claude-fleet",
+  "owner": { "name": "zAcherttp" },
+  "description": "Fleet: a pool of parallel Claude Code sessions that can see each other.",
+  "plugins": [
+    { "name": "fleet", "source": "./", "description": "Pool, queue and board for parallel Claude Code sessions." }
+  ]
+}

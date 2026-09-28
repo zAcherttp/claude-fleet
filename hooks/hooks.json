@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/bin/fleet hook-session-start", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}
