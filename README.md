@@ -7,6 +7,9 @@ without them stepping on each other.
 - **Hear back, without a relay.** Enqueue with `--notify <session>` and the
   task tells that session when it is done, given up or lost, or files an issue.
   Questions and "PR ready" stay with the task's own session.
+- **A dispatcher you can hand over.** The brief and task template live in the fleet,
+  every task event is journaled per day, and `fleet resume` gives a fresh session
+  the role, the last two days and the board, and retargets open tasks to it.
 - **Findings enqueue themselves.** A session that turns up a new issue files it
   and enqueues it, and tells the enqueuer the task id, so nobody picks it up twice.
 - **A pool, not a stampede.** At most 5 run at once (configurable); the rest queue.
@@ -63,7 +66,7 @@ States: `queued → launching → working → question | mergeable → done`, pl
 fleet --self-test
 ```
 
-13 checks: the pool limit, the queue position, duplicate keys refused, a halt
+16 checks: the pool limit, the queue position, duplicate keys refused, a halt
 freeing its slot and returning the next launch, the enqueuer named on done, release
 and a lost worktree but never on a question or mergeable, stale launches requeued, lost
 worktrees, overlap detection, a held lock blocking a writer, a dead holder's lock

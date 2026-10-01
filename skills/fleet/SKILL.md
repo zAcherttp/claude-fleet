@@ -55,6 +55,27 @@ app's task chip (`spawn_task` — the user clicks once; say so); otherwise print
 prompt for the user to paste into a new session. A launch nobody joins within 30
 minutes goes back to the queue (`fleet sweep`).
 
+## Dispatching: one session that keeps a project's pool full
+
+A dispatcher is an ordinary session whose job is picking work, enqueueing it and
+reporting what lands. What makes it one is written down, so any session can take
+the role and the old one can be archived:
+
+- **Start or take over:** `fleet resume --project <name> --session <your session id>`.
+  It prints the saved brief, where the task template is, today's and yesterday's
+  journal for that project, and the board. With `--session` it retargets
+  `--notify` on that project's open tasks to you, so their notices reach you and
+  not an archived dispatcher.
+- **Keep the role current:** `fleet dispatch save --project <name> --brief <file>
+  --template <file>` whenever the user changes how the work should be picked or
+  what every task prompt must say. The brief is the user's standing instructions;
+  the template is the rules block every task prompt carries.
+- **The journal is automatic:** enqueue, join, every state change, release,
+  requeue and lost are recorded per day under `$FLEET_HOME/journal/`. Add what
+  the events can't say with `fleet note --project <name> --text "<decision,
+  hand-off or blocker>"`. Read it with `fleet journal --project <name> [--days n]`.
+- Resume from the journal and the board, never by re-reading old transcripts.
+
 ## Inside a fleet session
 
 1. **Join first.** `fleet join <id> ...` with your session id and name (the
@@ -125,6 +146,10 @@ databases are never yours to clean.
 | `fleet state <id> working\|question\|mergeable\|done [--note] [--pr]` | report; halting states free the slot and return the next launch |
 | `fleet release <id>` | give a task up unfinished; tell the `notify` session why |
 | `fleet board [--json]` | slots, running sessions, overlaps, queue |
+| `fleet journal [--project] [--days]` | what happened, bucketed by day |
+| `fleet note --project --text` | add a decision, hand-off or blocker to the journal |
+| `fleet dispatch save --project [--brief] [--template]` | keep what makes a session the dispatcher |
+| `fleet resume --project [--session]` | brief, template, journal and board; retargets `--notify` |
 | `fleet sweep` | requeue launches nobody joined; mark tasks whose worktree is gone `lost`, and message each `notify` it returns |
 | `fleet config [--max n] [--launch-timeout-min n]` | pool settings |
 | `fleet --self-test` | prove the pool, queue, lock and overlap rules still hold |
