@@ -103,7 +103,12 @@ the role and the old one can be archived:
 
 1. **Join first.** `fleet join <id> ...` with your session id and name (the
    session-info tool gives both). A SessionStart hook reminds you which task
-   you are when you resume.
+   you are when you resume. **If join refuses because another session already
+   holds the task, stop at once**: change nothing, tell the user in one line
+   which session holds it, and end. One launch can reach two launchers (the
+   session that freed the slot and a hand launch); only the first to join works.
+   `--takeover` is for a task whose holding session is gone (archived or
+   deleted), and only when the user says so.
 2. **Read the board before editing a file you did not create**, and at the start
    of every resumed turn:
 
@@ -165,7 +170,7 @@ databases are never yours to clean.
 |---|---|
 | `fleet enqueue --title --key --cwd --prompt-file [--notify] [--scope]` | add a task; launches it if its scope has a free slot |
 | `fleet next [--scope]` | fill the scope's free slots from its queue; prints what to launch |
-| `fleet join <id> --session --name --worktree` | bind this session to its task |
+| `fleet join <id> --session --name --worktree [--takeover]` | bind this session to its task; refused while another session holds it |
 | `fleet state <id> working\|question\|mergeable\|done [--note] [--pr]` | report; halting states free the slot and return the next launch |
 | `fleet release <id>` | give a task up unfinished; tell the `notify` session why |
 | `fleet board [--scope \| --all] [--json]` | slots, running sessions, overlaps, queue |
