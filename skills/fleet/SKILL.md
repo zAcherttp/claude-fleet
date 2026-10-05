@@ -18,6 +18,21 @@ A session **holds a slot while `launching` or `working`** and frees it the momen
 it halts — on a question for the user, on a mergeable PR, or done — and whoever
 frees a slot launches the next task.
 
+**Scopes.** Projects that belong together (one course, one client, one
+company) can share a scope with its own slots and queue, so a freed slot never
+hands one project's session another project's work:
+
+```bash
+fleet config --scope <name> --projects <repo,repo> [--paths <dir>] [--max <n>]
+```
+
+A task's scope is its `--scope` on enqueue, else the scope whose `--projects`
+names its repo or whose `--paths` holds its `cwd`, else `default` (sized by the
+plain `fleet config --max`). Tasks queued before a scope existed join it as soon
+as it is configured. With no scope configured, everything is `default` and the
+fleet behaves as one pool. `next`, `sweep` and `board` act on the scope of the
+current directory unless given `--scope` (`board --all` shows every scope).
+
 `fleet` is on PATH while this plugin is enabled (`"${CLAUDE_PLUGIN_ROOT}"/bin/fleet`
 otherwise). Every command prints JSON; a `launch` array in any result is work you
 must launch now (below).
@@ -41,6 +56,10 @@ fleet enqueue --title "<imperative, under 60 chars>" --key <owner/repo#123> --cw
 
 ## Launch (whoever got a `launch` entry)
 
+A `launch` list only ever holds tasks of the scope that freed the slot; each
+entry names its `scope`. To launch your scope's queue yourself:
+`fleet next --scope <name>` (or plain `fleet next` from inside one of its repos).
+
 For each entry, start a new session in `cwd`, in its own worktree, with this prompt:
 
 ```
@@ -55,7 +74,7 @@ app's task chip (`spawn_task` — the user clicks once; say so); otherwise print
 prompt for the user to paste into a new session. A launch nobody joins within 30
 minutes goes back to the queue (`fleet sweep`).
 
-## Dispatching: one session that keeps a project's pool full
+## Dispatching: one session that keeps a project's (or a scope's) pool full
 
 A dispatcher is an ordinary session whose job is picking work, enqueueing it and
 reporting what lands. What makes it one is written down, so any session can take
@@ -65,7 +84,10 @@ the role and the old one can be archived:
   It prints the saved brief, where the task template is, today's and yesterday's
   journal for that project, and the board. With `--session` it retargets
   `--notify` on that project's open tasks to you, so their notices reach you and
-  not an archived dispatcher.
+  not an archived dispatcher. A dispatcher for several repos takes the scope
+  instead: `fleet resume --scope <name> --session <id>` reads the scope's saved
+  brief and template, the journal of every repo in it, its board, and retargets
+  every open task of the scope.
 - **Keep the role current:** `fleet dispatch save --project <name> --brief <file>
   --template <file>` whenever the user changes how the work should be picked or
   what every task prompt must say. The brief is the user's standing instructions;
@@ -73,7 +95,8 @@ the role and the old one can be archived:
 - **The journal is automatic:** enqueue, join, every state change, release,
   requeue and lost are recorded per day under `$FLEET_HOME/journal/`. Add what
   the events can't say with `fleet note --project <name> --text "<decision,
-  hand-off or blocker>"`. Read it with `fleet journal --project <name> [--days n]`.
+  hand-off or blocker>"`. Read it with `fleet journal --project <name> [--days n]`,
+  or `fleet journal --scope <name>` for every repo of a scope.
 - Resume from the journal and the board, never by re-reading old transcripts.
 
 ## Inside a fleet session
@@ -88,7 +111,7 @@ the role and the old one can be archived:
    fleet board
    ```
 
-   It shows `slots used/max`, every running session (name, task, key, state,
+   It shows your scope's `slots used/max`, every running session (name, task, key, state,
    branch, PR, files touched, overlaps) and the queue. Files touched are read
    live from each worktree's git state, so they are never stale.
 3. **Overlap → message before editing.** A file on another session's list:
@@ -140,19 +163,20 @@ databases are never yours to clean.
 
 | Command | Does |
 |---|---|
-| `fleet enqueue --title --key --cwd --prompt-file [--notify]` | add a task; launches it if a slot is free |
-| `fleet next` | fill free slots from the queue; prints what to launch |
+| `fleet enqueue --title --key --cwd --prompt-file [--notify] [--scope]` | add a task; launches it if its scope has a free slot |
+| `fleet next [--scope]` | fill the scope's free slots from its queue; prints what to launch |
 | `fleet join <id> --session --name --worktree` | bind this session to its task |
 | `fleet state <id> working\|question\|mergeable\|done [--note] [--pr]` | report; halting states free the slot and return the next launch |
 | `fleet release <id>` | give a task up unfinished; tell the `notify` session why |
-| `fleet board [--json]` | slots, running sessions, overlaps, queue |
-| `fleet journal [--project] [--days]` | what happened, bucketed by day |
+| `fleet board [--scope \| --all] [--json]` | slots, running sessions, overlaps, queue |
+| `fleet journal [--project \| --scope] [--days]` | what happened, bucketed by day |
 | `fleet note --project --text` | add a decision, hand-off or blocker to the journal |
-| `fleet dispatch save --project [--brief] [--template]` | keep what makes a session the dispatcher |
-| `fleet resume --project [--session]` | brief, template, journal and board; retargets `--notify` |
-| `fleet sweep` | requeue launches nobody joined; mark tasks whose worktree is gone `lost`, and message each `notify` it returns |
-| `fleet config [--max n] [--launch-timeout-min n]` | pool settings |
-| `fleet --self-test` | prove the pool, queue, lock and overlap rules still hold |
+| `fleet dispatch save --project\|--scope [--brief] [--template]` | keep what makes a session the dispatcher |
+| `fleet resume --project\|--scope [--session]` | brief, template, journal and board; retargets `--notify` |
+| `fleet sweep [--scope]` | requeue launches nobody joined; mark tasks whose worktree is gone `lost`, and message each `notify` it returns |
+| `fleet config [--max n] [--launch-timeout-min n]` | pool settings (`max` sizes the `default` scope) |
+| `fleet config --scope <s> [--projects a,b] [--paths dir] [--max n] [--remove]` | define, resize or remove a scope |
+| `fleet --self-test` | prove the pool, queue, scope, lock and overlap rules still hold |
 
 State lives in `$FLEET_HOME` (default `~/.fleet`), one JSON file per task, written
 atomically under a lock that a dead process cannot hold forever.

@@ -13,6 +13,10 @@ without them stepping on each other.
 - **Findings enqueue themselves.** A session that turns up a new issue files it
   and enqueues it, and tells the enqueuer the task id, so nobody picks it up twice.
 - **A pool, not a stampede.** At most 5 run at once (configurable); the rest queue.
+- **Scopes keep projects apart.** Group repos into a scope with its own slots and
+  queue (`fleet config --scope course --projects game,core --max 2`), so a work
+  session never launches a side project's task, and `board`, `next` and
+  `journal` take `--scope`.
 - **No idle slots.** A session frees its slot the moment it halts — a question
   for you, a mergeable PR, or done — and launches the next queued task itself.
 - **A shared board.** Every session sees who is running, on what, which files
@@ -66,11 +70,14 @@ States: `queued → launching → working → question | mergeable → done`, pl
 fleet --self-test
 ```
 
-16 checks: the pool limit, the queue position, duplicate keys refused, a halt
+27 checks: the pool limit, the queue position, duplicate keys refused, a halt
 freeing its slot and returning the next launch, the enqueuer named on done, release
 and a lost worktree but never on a question or mergeable, stale launches requeued, lost
-worktrees, overlap detection, a held lock blocking a writer, a dead holder's lock
-taken over, and six concurrent enqueues of one key producing exactly one task.
+worktrees, overlap detection, the journal and dispatcher hand-over, per-scope slots
+and queues (a halt never launches another scope's task; tasks join a scope configured
+after they were queued; `--scope` filters board, next, journal and resume), a held lock
+blocking a writer, a dead holder's lock taken over, and six concurrent enqueues of one
+key producing exactly one task.
 
 ## License
 
