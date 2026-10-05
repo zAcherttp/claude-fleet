@@ -70,7 +70,7 @@ States: `queued → launching → working → question | mergeable → done`, pl
 fleet --self-test
 ```
 
-27 checks: the pool limit, the queue position, duplicate keys refused, a halt
+29 checks: the pool limit, the queue position, duplicate keys refused, a second session refused on a held task (and `--takeover` for a gone one), a halt
 freeing its slot and returning the next launch, the enqueuer named on done, release
 and a lost worktree but never on a question or mergeable, stale launches requeued, lost
 worktrees, overlap detection, the journal and dispatcher hand-over, per-scope slots
