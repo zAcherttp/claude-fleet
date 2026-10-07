@@ -4,21 +4,41 @@ A Claude Code plugin for running several sessions in parallel, one task each,
 without them stepping on each other.
 
 - **Delegate from anywhere.** Any session can `fleet enqueue` a task.
-- **Hear back, without a relay.** Enqueue with `--notify <session>` and the
-  task tells that session when it is done, given up or lost, or files an issue.
-  Questions and "PR ready" stay with the task's own session.
+- **The enqueuer launches.** Enqueue with `--notify <session>` and that session
+  owns the task: when a slot frees, the task becomes a pending launch for it
+  (claimed once with `fleet events --for <session>`), instead of a chip from
+  whichever session happened to halt. Tasks with no enqueuer launch as before.
+- **Pull, don't wait for messages.** `fleet events --for <session>` returns
+  everything since that session's stored cursor — done, released, lost, stale,
+  verifying, issues filed and closed — so a busy dispatcher misses nothing.
+  Messages are only a nudge. Questions and "PR ready" stay with the task's own
+  session.
+- **Prompts live in the fleet.** `fleet prompt <id>` prints the full launch text,
+  so a launcher never points at a file in another session's scratchpad.
 - **A dispatcher you can hand over.** The brief and task template live in the fleet,
   every task event is journaled per day, and `fleet resume` gives a fresh session
   the role, the last two days and the board, and retargets open tasks to it.
 - **Findings enqueue themselves.** A session that turns up a new issue files it
   and enqueues it, and tells the enqueuer the task id, so nobody picks it up twice.
 - **A pool, not a stampede.** At most 5 run at once (configurable); the rest queue.
+  `fleet launch <id>` starts one named task past the limit (journaled, nothing
+  else promoted), `fleet bump <id>` moves one to the head of the queue, and
+  `fleet hold` / `unhold` pauses a scope's promotion without touching its queue.
+- **Wait in the fleet, not in memory.** `--after <task>` and `--after-pr
+  <owner/repo#n>` keep a task `waiting` (not counted, not promoted) until that
+  task is done or that PR has merged.
 - **Scopes keep projects apart.** Group repos into a scope with its own slots and
   queue (`fleet config --scope course --projects game,core --max 2`), so a work
   session never launches a side project's task, and `board`, `next` and
   `journal` take `--scope`.
 - **No idle slots.** A session frees its slot the moment it halts — a question
-  for you, a mergeable PR, or done — and launches the next queued task itself.
+  for you, a mergeable PR, verifying in production, or done. `next`, `enqueue`
+  and `sweep` also requeue launches nobody joined, mark a task whose worktree is
+  gone `lost`, and mark the older of two tasks recording one worktree `stale`.
+- **Net issues per task.** `fleet state <id> done --closed lms#1 --filed lms#2`
+  (or `working --filed …` mid-task) records what a task closed and filed;
+  `board` and `journal` show today's net per project, so a task that grows the
+  backlog shows while it runs.
 - **A shared board.** Every session sees who is running, on what, which files
   each one has touched (read live from git), and where two overlap.
 - **Talk, don't collide.** On an overlap, sessions message each other by name
@@ -28,16 +48,22 @@ without them stepping on each other.
 
 ```
 slots 4/5
-NAME   TASK  KEY              STATE      BRANCH             PR     FILES  OVERLAP
-alder  t001  acme/api#1650    mergeable  claude/alder-3f1   #1731  6      —
-birch  t002  acme/api#1652    working    claude/birch-9c2   —      3      src/routes/sessions.ts ← cedar
-cedar  t003  acme/api#1655    working    claude/cedar-11a   —      2      src/routes/sessions.ts ← birch
-dogw   t004  acme/web#88      question   claude/dogw-7d0    —      1      —
+NAME   TASK  KEY              STATE      BRANCH             PR     NET  FILES  OVERLAP
+alder  t001  acme/api#1650    mergeable  claude/alder-3f1   #1731  −1   6      —
+birch  t002  acme/api#1652    working    claude/birch-9c2   —      +2   3      src/routes/sessions.ts ← cedar
+cedar  t003  acme/api#1655    working    claude/cedar-11a   —      —    2      src/routes/sessions.ts ← birch
+dogw   t004  acme/web#88      question   claude/dogw-7d0    —      —    1      —
 notes
   dogw: should the empty state link to settings or to docs?
+verifying (1)
+  t005 acme/api#1640 PR #1720 — post-deploy probe on the export job
+waiting (1)
+  t008 acme/api#1670 Drop the old export path — after acme/api#1731 (OPEN)
 queue (2)
   1. t006 acme/api#1661 Fix the export timeout
   2. t007 acme/api#1664 Retry the webhook on 502
+net issues today
+  api +1 (filed 2, closed 1)
 ```
 
 ## Install
@@ -60,9 +86,10 @@ in the Claude desktop app the fallback is one task chip per launch.
 - A `SessionStart` hook tells a session inside a task's worktree which task it
   is, with the current board.
 
-States: `queued → launching → working → question | mergeable → done`, plus
-`released` (given up) and `lost` (worktree deleted). Only `launching` and
-`working` count against the pool.
+States: `waiting → queued → launching → working → question | mergeable →
+verifying → done`, plus `released` (given up), `lost` (worktree deleted) and
+`stale` (another task joined the same worktree). Only `launching` and `working`
+count against the pool.
 
 ## Check it
 
@@ -70,14 +97,14 @@ States: `queued → launching → working → question | mergeable → done`, pl
 fleet --self-test
 ```
 
-29 checks: the pool limit, the queue position, duplicate keys refused, a second session refused on a held task (and `--takeover` for a gone one), a halt
-freeing its slot and returning the next launch, the enqueuer named on done, release
-and a lost worktree but never on a question or mergeable, stale launches requeued, lost
-worktrees, overlap detection, the journal and dispatcher hand-over, per-scope slots
-and queues (a halt never launches another scope's task; tasks join a scope configured
-after they were queued; `--scope` filters board, next, journal and resume), a held lock
-blocking a writer, a dead holder's lock taken over, and six concurrent enqueues of one
-key producing exactly one task.
+51 checks: the pool limit, the queue position, duplicate keys refused, a second session refused on a held task (and `--takeover` for a gone one), a halt
+freeing its slot, the enqueuer named on done, release and a lost worktree but never on a question or mergeable, stale launches requeued, lost
+worktrees, overlap detection, the journal and dispatcher hand-over, per-scope slots and queues, a held lock blocking a writer, a dead holder's lock
+taken over, six concurrent enqueues of one key producing exactly one task; and for 0.5.0: a promoted task with an enqueuer becomes that enqueuer's
+pending launch, claimed exactly once, and handed to the next halting session if never claimed; `launch` past `max` promotes nothing else; `bump`;
+`hold`/`unhold`; `--after` and `--after-pr` waits (and `gh` missing); `events` cursors per session and per filter; `verifying` holding no slot and
+surviving its worktree; `prompt`; `next` and `enqueue` sweeping; the older of two tasks in one worktree marked `stale`; filed/closed refs and today's
+net; and 0.4.1 task files still working.
 
 ## License
 
