@@ -85,6 +85,27 @@ in the Claude desktop app the fallback is one task chip per launch.
   state, handle overlaps and clean up.
 - A `SessionStart` hook tells a session inside a task's worktree which task it
   is, with the current board.
+- `hooks/register.tsx` is a Claude Code mod (function hooks) that draws the
+  board live: a band above the prompt, a pane (`/fleet-board`) and toasts. It
+  reads `fleet board --all --json` and one batched `gh api graphql` query for
+  every task's PR each minute, and never runs `fleet events`, so it claims no
+  launches. A PR in a repository the signed-in `gh` account cannot read shows
+  "no access" rather than failing the refresh.
+
+### The board
+
+The pane lists what needs you first (a PR that is ready to merge, red or in
+conflict, and every task with a question), then one card per scope with its
+slot meter, its running tasks in fixed columns (id · state · title · PR · PR
+status) and its queue (first five, the rest behind "+N more"). Waiting and
+verifying tasks fold to one line. Status icons are drawn on the desktop; the
+terminal shows the same badges as text. A refresh that takes five seconds or
+more says where the time went, and a `gh` failure is shown, not swallowed.
+
+For layout work, `FLEET_BOARD_FIXTURES=1` enables `/fleet-board worst`, which
+swaps in a synthetic worst-case board (long and non-Latin titles, four-digit
+ids, an over-capacity scope, a held scope, a red PR with four failing checks,
+fourteen queued tasks), and `/fleet-board live` to go back.
 
 States: `waiting → queued → launching → working → question | mergeable →
 verifying → done`, plus `released` (given up), `lost` (worktree deleted) and
@@ -95,7 +116,11 @@ count against the pool.
 
 ```bash
 fleet --self-test
+claude plugin test .
 ```
+
+`claude plugin test` runs the board's 17 tests on the terminal and desktop
+surfaces, including the worst-case board at 48 and 100 columns.
 
 51 checks: the pool limit, the queue position, duplicate keys refused, a second session refused on a held task (and `--takeover` for a gone one), a halt
 freeing its slot, the enqueuer named on done, release and a lost worktree but never on a question or mergeable, stale launches requeued, lost
