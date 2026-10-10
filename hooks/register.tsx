@@ -2,9 +2,9 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
 import type { PrInfo, PrState, RunningTask, Slot, View } from '../types'
-import type { IconKind, PrRef } from './model'
+import type { IconKind, PrRef, RunOutcome } from './model'
 import { worstView } from './worst'
-import { bandLine, changes, classifyPr, counts, emptyView, layout, meterSvg, meterText, parseBoard, prLabel, prRef, ago, iconSvg, parsePrUrl, prShort, prQuery, stateIcon, readPrQuery, rememberTitles, titleOf, trackedPrs } from './model'
+import { bandLine, changes, classifyPr, counts, emptyView, layout, meterSvg, meterText, parseBoard, prLabel, prRef, ago, boardFailure, iconSvg, parsePrUrl, prFailure, prShort, prQuery, stateIcon, readPrQuery, rememberTitles, titleOf, trackedPrs } from './model'
 
 const PANE = 'fleet-board'
 const POLL_MS = 60_000
@@ -44,17 +44,16 @@ const stateTone = (state: string) =>
 
 let busy = false
 let again = false
-let tools: { fleet: string; gh: string } | null = null
 
-const QUIET_ENV = { GH_NO_UPDATE_NOTIFIER: '1', GH_PROMPT_DISABLED: '1', NO_COLOR: '1', PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin' }
+const QUIET_ENV = { GH_NO_UPDATE_NOTIFIER: '1', GH_PROMPT_DISABLED: '1', NO_COLOR: '1' }
 
-async function locate($: EngineInterface) {
-  if (tools) return tools
-  const found = await $.process.run(['/bin/sh', '-c', 'command -v gh'], { env: QUIET_ENV, timeoutMs: 5_000 })
-  const gh = found.stdout.trim()
-  if (!gh) throw new Error('gh not found on PATH')
-  tools = { fleet: `${$.plugin.root}/bin/fleet`, gh }
-  return tools
+async function run($: EngineInterface, argv: string[]): Promise<RunOutcome> {
+  try {
+    const r = await $.process.run(argv, { env: QUIET_ENV, timeoutMs: 10_000 })
+    return { exitCode: r.exitCode, stdout: r.stdout, stderr: r.stderr }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) }
+  }
 }
 
 async function poll($: EngineInterface) {
@@ -66,9 +65,12 @@ async function poll($: EngineInterface) {
   await update($, view, v => ({ ...v, refreshing: true }))
   try {
     const started = await $.clock.now()
-    const { fleet, gh } = await locate($)
-    const boardRun = await $.process.run([fleet, 'board', '--all', '--json'], { env: QUIET_ENV, timeoutMs: 10_000 })
-    if (boardRun.exitCode !== 0) throw new Error(`fleet board exited ${boardRun.exitCode}`)
+    const boardRun = await run($, ['node', `${$.plugin.root}/lib/fleet.mjs`, 'board', '--all', '--json'])
+    const boardError = boardFailure(boardRun)
+    if (boardError !== null || 'error' in boardRun) {
+      await update($, view, v => ({ ...v, error: boardError ?? 'fleet board failed', refreshing: false }))
+      return
+    }
     const board = parseBoard(boardRun.stdout)
     const boardDone = await $.clock.now()
     const before: View = await read($, view)
@@ -76,9 +78,9 @@ async function poll($: EngineInterface) {
     const prs: Record<string, PrInfo> = {}
     let prError: string | null = null
     if (refs.length > 0) {
-      const run = await $.process.run([gh, 'api', 'graphql', '-f', `query=${prQuery(refs)}`], { env: QUIET_ENV, timeoutMs: 10_000 })
-      const answer = readPrQuery(refs, run.stdout)
-      if (!answer.ok) prError = (run.stderr.trim().split('\n')[0] || `gh exited ${run.exitCode}`).slice(0, 200)
+      const prRun = await run($, ['gh', 'api', 'graphql', '-f', `query=${prQuery(refs)}`])
+      const answer = 'error' in prRun ? { ok: false, prs: {} } : readPrQuery(refs, prRun.stdout)
+      if (!answer.ok) prError = prFailure(prRun) ?? 'PR status unavailable.'
       for (const r of refs) {
         prs[r.url] = answer.prs[r.url] ?? (answer.ok ? { url: r.url, number: r.number, title: '', state: 'skipped', failing: [] } : (before.prs[r.url] ?? { url: r.url, number: r.number, title: '', state: 'unknown', failing: [] }))
       }
@@ -98,7 +100,7 @@ async function poll($: EngineInterface) {
     for (const line of changes(before, after)) $.ui.toast(line)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    await update($, view, v => ({ ...v, error: message, refreshing: false }))
+    await update($, view, v => ({ ...v, error: `The board hit an unexpected error: ${message}`, refreshing: false }))
   } finally {
     busy = false
     if (again) {
@@ -175,7 +177,7 @@ export const register: Register = on => {
     const current = await shown($)
     const { Box, Text, Link, Button } = $.ui.resolve(e)
     if (current.board === null) {
-      return <Text dimColor>{current.error ? `Could not read the board: ${current.error}` : 'Reading the board…'}</Text>
+      return current.error ? <Text color="error" wrap="wrap">{current.error}</Text> : <Text dimColor>Reading the board…</Text>
     }
     const filter = await read($, scopeFilter)
     const open = await read($, openSections)
@@ -277,7 +279,8 @@ export const register: Register = on => {
             )}
             {picker}
           </Box>
-          {current.prError && <Text color="error" wrap="wrap">PR status unavailable: {current.prError}</Text>}
+          {current.error && <Text color="error" wrap="wrap">Not refreshed: {current.error}</Text>}
+          {current.prError && <Text color="warning" wrap="wrap">{current.prError}</Text>}
           <Box gap={1} flexWrap="wrap">
             {badge(`${c.used}/${c.max} running`, c.used > c.max ? 'warning' : c.used === c.max ? 'subtle' : 'success', undefined, 's')}
             {ready > 0 && badge(`${ready} ready`, 'success', undefined, 'r')}

@@ -59,16 +59,19 @@ const PANE = { component: 'Pane', requestId: 'fleet-board', props: { title: 'Fle
 describe('pane', () => {
   test('draws on the terminal and the desktop, and a row press opens its note', async ($, on) => {
     const out = (stdout: string, exitCode = 0) => ({ value: { exitCode, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    const envs: Array<Record<string, string> | undefined> = []
     on('process.run', async (_$, e) => {
-      if (e.argv[0] === '/bin/sh') return out('/fake/gh\n')
-      if (e.argv[1] === 'board') return out(boardJson)
-      if (e.argv[1] === 'api') return out(graphJson)
+      envs.push(e.init?.env)
+      if (e.argv[0] === 'node' && e.argv.includes('board')) return out(boardJson)
+      if (e.argv[0] === 'gh') return out(graphJson)
       return out('', 1)
     })
     mock.clock(on)
     mock.store(on)
     on('ui.open', async () => ({ value: { isPlaced: true as const } }))
     await $.command.run({ command: 'fleet-board', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 100 } })
+    expect(envs.length).toBeGreaterThan(0)
+    expect(envs.some(env => env !== undefined && 'PATH' in env)).toBe(false)
     for (const surface of ['terminal', 'desktop'] as const) {
       const ui = await $.ui.mount({ plugin: 'fleet', surface, ...PANE })
       expect(await ui.find({ text: /^Needs you$/ })).toBeDefined()
@@ -103,5 +106,20 @@ describe('pane width', () => {
     await inline.unmount()
     await run()
     expect(opened).toEqual([undefined, 64])
+  })
+})
+
+describe('failure paths', () => {
+  test('a missing node is explained on the pane instead of a bare exit code', async ($, on) => {
+    mock.clock(on)
+    mock.store(on)
+    on('ui.open', async () => ({ value: { isPlaced: true as const } }))
+    on('process.run', async () => ({ deny: 'spawn node ENOENT' }))
+    await $.command.run({ command: 'fleet-board', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 100 } })
+    for (const surface of ['terminal', 'desktop'] as const) {
+      const ui = await $.ui.mount({ plugin: 'fleet', surface, ...PANE })
+      expect(await ui.find({ text: /Node\.js isn't on the PATH/ })).toBeDefined()
+      await ui.unmount()
+    }
   })
 })

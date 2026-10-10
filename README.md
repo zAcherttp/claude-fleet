@@ -33,7 +33,7 @@ claude plugin install fleet@claude-fleet
 
 Then ask Claude to *"fan these issues out in parallel"*, or open the board with `/fleet-board`.
 
-Needs Node 18+, git and the GitHub CLI (`gh`) for PR status.
+Works on macOS, Linux and Windows. Needs Node 18+, git and the GitHub CLI (`gh`) for PR status.
 
 <details>
 <summary>The terminal view</summary>
@@ -65,7 +65,7 @@ queue (2)
 <details>
 <summary>Tested</summary>
 
-`fleet --self-test` runs 51 checks: the pool limit, queue order, held tasks, dependencies, locks, hand-over and six concurrent enqueues producing exactly one task. `claude plugin test .` runs 17 board tests on the terminal and the desktop at 36, 48 and 100 columns, including a worst-case board (`FLEET_BOARD_FIXTURES=1`, `/fleet-board worst`).
+`fleet --self-test` runs 53 checks on Linux, macOS and Windows in CI: the pool limit, queue order, held tasks, dependencies, locks, hand-over and six concurrent enqueues producing exactly one task. `claude plugin test .` runs 20 board tests on the terminal and the desktop at 36, 48 and 100 columns, including a worst-case board (`FLEET_BOARD_FIXTURES=1`, `/fleet-board worst`) and a plain message for each way a refresh can fail.
 
 </details>
 
