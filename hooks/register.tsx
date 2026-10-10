@@ -46,11 +46,11 @@ let busy = false
 let again = false
 let tools: { fleet: string; gh: string } | null = null
 
-const QUIET_ENV = { GH_NO_UPDATE_NOTIFIER: '1', GH_PROMPT_DISABLED: '1', NO_COLOR: '1', PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin' }
+const QUIET_ENV = { GH_NO_UPDATE_NOTIFIER: '1', GH_PROMPT_DISABLED: '1', NO_COLOR: '1' }
 
 async function locate($: EngineInterface) {
   if (tools) return tools
-  const found = await $.process.run(['/bin/sh', '-c', 'command -v gh'], { env: QUIET_ENV, timeoutMs: 5_000 })
+  const found = await $.process.run(['/bin/sh', '-c', 'PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"; command -v gh'], { env: QUIET_ENV, timeoutMs: 5_000 })
   const gh = found.stdout.trim()
   if (!gh) throw new Error('gh not found on PATH')
   tools = { fleet: `${$.plugin.root}/bin/fleet`, gh }
