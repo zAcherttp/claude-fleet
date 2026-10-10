@@ -15,6 +15,10 @@ Queue the work, and fleet keeps five sessions busy: a freed slot gets the next t
 - **Dependencies and holds.** Make a task wait for another task or a PR to merge, freeze one project during a release, or push one task to the front.
 - **Hand over the dispatcher.** The brief, the task template and a daily journal live in the fleet, so a fresh session takes over the board in one command.
 
+### "Can't I just open five sessions and tell each one to fix an issue?"
+
+Sure, if you enjoy being the bottleneck. You'd be the one noticing which session finished, picking the next issue, checking who touched which file, and refreshing five PR pages to see what went green. Fleet does all of that while you're out to lunch, and pings you when it actually needs a human.
+
 ## Install
 
 ```bash
