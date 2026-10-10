@@ -1,19 +1,28 @@
 # claude-fleet
 
-**Run five Claude Code sessions at once, and still know exactly what each one is doing.**
+A small helper for running a few Claude Code sessions side by side, one task each.
 
 ![The fleet board in Claude Code](docs/board.png)
 
-Queue the work, and fleet keeps five sessions busy: a freed slot gets the next task right away. A live board shows what needs you: a PR ready to merge, a red check, a conflict, a question.
+You queue the work; fleet starts the next task when a session frees up, and keeps a board of what each one is doing and what is waiting on you.
 
-## Why fleet
+## What it might help with
 
-- **Delegate in one line.** Any session can hand off a task: `fleet enqueue --title "Fix the export timeout" --prompt-file task.md`.
-- **Never idle, never stampeded.** At most five run at once. A finished, blocked or merged task frees its slot, and the next one in the queue takes it.
-- **No collisions.** Fleet tracks which files every session has touched. When two overlap, they message each other before editing.
-- **What needs you comes first.** A band above your prompt and a `/fleet-board` pane update every minute, and a toast pops when a PR turns green or red or a task asks you something.
-- **Dependencies and holds.** Make a task wait for another task or a PR to merge, freeze one project during a release, or push one task to the front.
-- **Hand over the dispatcher.** The brief, the task template and a daily journal live in the fleet, so a fresh session takes over the board in one command.
+- **Handing work off.** Any session can pass a task along with `fleet enqueue`, and it waits its turn in the queue.
+- **Keeping things moving.** A few sessions run at once. When one finishes, stops to ask you something or opens a PR, the next task can start. The default of five is simply what one laptop handles comfortably; raise or lower it with `fleet config --max <n>`, per scope if you like.
+- **Sessions that know about each other.** Each session can see the board, so if you send a message to the wrong one, it will usually point you to the session that owns that task and offer to pass the message on.
+- **Overlaps noticed early.** Worktrees keep edits apart, but two tasks changing the same file can still conflict when they merge. Fleet notices the overlap while both are running, so the sessions can talk it through.
+- **A quiet view of what needs you.** A line above your prompt and a `/fleet-board` pane show PRs that are ready, red or in conflict, and any open questions. A small toast appears when something changes.
+- **Waiting and pausing.** A task can wait for another task or for a PR to merge, a project can be held during a release, and one task can be moved to the front.
+- **Picking up where you left off.** The brief, the task template and a daily journal are kept with the fleet, so a new session can take over the coordinating role.
+
+### "Couldn't I just open the sessions myself?"
+
+You can, and for two or three tasks that works well. Past that, you tend to become the bottleneck: noticing which session finished, remembering which one had which issue, choosing what comes next, and checking each PR for its status. Fleet takes care of that bookkeeping and lets you know when a person is actually needed.
+
+### A note before installing
+
+Fleet is ephemeral software. It was written for one person's day-to-day work and changes as that work changes. Commands, file formats and the board may shift between versions without a migration path, and parts of it may be retired once Claude Code does the same job natively. If you depend on it, pin a version and read the release notes before updating.
 
 ## Install
 
