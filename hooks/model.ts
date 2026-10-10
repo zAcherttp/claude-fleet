@@ -300,3 +300,39 @@ export function iconSvg(kind: IconKind): string {
 export function stateIcon(state: string): IconKind {
   return (['working', 'question', 'mergeable', 'launching', 'queued'] as const).find(k => k === state) ?? (state === 'verifying' ? 'running' : 'unknown')
 }
+
+export type RunOutcome = { exitCode: number; stdout: string; stderr: string } | { error: string }
+
+const firstLine = (text: string) => text.trim().split('\n').find(line => line.trim().length > 0)?.trim().slice(0, 200) ?? ''
+
+const isMissing = (o: RunOutcome) =>
+  'error' in o ? /ENOENT|not found|no such file|cannot find|not recognized/i.test(o.error) : o.exitCode === 127 || o.exitCode === 9009
+
+const isTimeout = (o: RunOutcome) => 'error' in o && /time ?out|timed out|ETIMEDOUT|killed/i.test(o.error)
+
+export function boardFailure(o: RunOutcome): string | null {
+  if (isMissing(o)) return "Can't run fleet: Node.js isn't on the PATH Claude Code started with. Install Node 18 or newer, or start Claude Code from a terminal where `node --version` works."
+  if (isTimeout(o)) return '`fleet board` took longer than 10 s. Another fleet command may be holding the lock; `fleet sweep` clears a stale one.'
+  if ('error' in o) return `Couldn't start \`fleet board\`: ${firstLine(o.error)}`
+  if (o.exitCode !== 0) {
+    if (/SyntaxError|Unexpected token|ERR_UNKNOWN_FILE_EXTENSION/.test(o.stderr)) return 'fleet needs Node 18 or newer; the `node` Claude Code found is older. Check `node --version`.'
+    return `\`fleet board\` failed (exit ${o.exitCode}): ${firstLine(o.stderr) || 'no error output'}`
+  }
+  try {
+    JSON.parse(o.stdout)
+    return null
+  } catch {
+    return `\`fleet board\` printed something other than JSON ("${firstLine(o.stdout).slice(0, 80)}"). Run \`fleet board --all --json\` in a terminal to see why.`
+  }
+}
+
+export function prFailure(o: RunOutcome): string | null {
+  if (isMissing(o)) return 'PR status needs the GitHub CLI: install `gh`, then run `gh auth login`.'
+  if (isTimeout(o)) return "Couldn't reach GitHub within 10 s; showing the last known PR status."
+  const text = 'error' in o ? o.error : o.stderr
+  if ('exitCode' in o && o.exitCode === 0) return null
+  if (/auth login|not logged in|authentication|HTTP 401|Bad credentials/i.test(text)) return "`gh` isn't signed in, so PR status is unavailable. Run `gh auth login`."
+  if (/rate limit/i.test(text)) return "GitHub's API rate limit was reached; PR status resumes on its own."
+  if (/could not resolve host|network|ECONN|dial tcp|i\/o timeout/i.test(text)) return "Couldn't reach GitHub; showing the last known PR status."
+  return `PR status unavailable: ${firstLine(text) || 'gh gave no reason'}`
+}

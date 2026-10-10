@@ -121,3 +121,31 @@ describe('repositories this account cannot read', () => {
     expect(readPrQuery(refs, JSON.stringify({ errors: [{ message: 'Bad credentials' }] })).ok).toBe(false)
   })
 })
+
+import { boardFailure, prFailure } from './model'
+
+describe('failure messages', () => {
+  const ok = (stdout: string) => ({ exitCode: 0, stdout, stderr: '' })
+  const failed = (exitCode: number, stderr: string) => ({ exitCode, stdout: '', stderr })
+
+  test('fleet board: each way it can fail gets its own plain message, and success gets none', async () => {
+    expect(boardFailure(ok('{"slots":[]}'))).toBeNull()
+    expect(boardFailure({ error: 'spawn node ENOENT' })).toMatch(/Node\.js isn't on the PATH/)
+    expect(boardFailure(failed(127, ''))).toMatch(/Node\.js isn't on the PATH/)
+    expect(boardFailure({ error: 'process timed out after 10000 ms' })).toMatch(/took longer than 10 s/)
+    expect(boardFailure(failed(1, 'SyntaxError: Unexpected token ?'))).toMatch(/Node 18 or newer/)
+    expect(boardFailure(failed(1, 'fleet: lock held by pid 4242\n'))).toBe('`fleet board` failed (exit 1): fleet: lock held by pid 4242')
+    expect(boardFailure(ok('Warning: something odd'))).toMatch(/something other than JSON \("Warning: something odd"\)/)
+  })
+
+  test('gh: missing, signed out, rate limited, offline and unknown each read differently', async () => {
+    expect(prFailure(ok('{}'))).toBeNull()
+    expect(prFailure({ error: 'spawn gh ENOENT' })).toMatch(/install `gh`/)
+    expect(prFailure(failed(4, 'To get started with GitHub CLI, please run:  gh auth login'))).toMatch(/isn't signed in/)
+    expect(prFailure(failed(1, 'HTTP 401: Bad credentials'))).toMatch(/isn't signed in/)
+    expect(prFailure(failed(1, 'GraphQL: API rate limit exceeded'))).toMatch(/rate limit/)
+    expect(prFailure(failed(1, 'dial tcp: lookup api.github.com: no such host'))).toMatch(/Couldn't reach GitHub/)
+    expect(prFailure({ error: 'timed out' })).toMatch(/within 10 s/)
+    expect(prFailure(failed(1, 'something new\nmore'))).toBe('PR status unavailable: something new')
+  })
+})
