@@ -9,7 +9,7 @@ You queue the work; fleet starts the next task when a session frees up, and keep
 ## What it might help with
 
 - **Handing work off.** Any session can pass a task along with `fleet enqueue`, and it waits its turn in the queue.
-- **Keeping things moving.** A few sessions run at once (five by default). When one finishes, stops to ask you something or opens a PR, the next task can start.
+- **Keeping things moving.** A few sessions run at once. When one finishes, stops to ask you something or opens a PR, the next task can start. The default of five is simply what one laptop handles comfortably; raise or lower it with `fleet config --max <n>`, per scope if you like.
 - **Sessions that know about each other.** Each session can see the board, so if you send a message to the wrong one, it will usually point you to the session that owns that task and offer to pass the message on.
 - **Overlaps noticed early.** Worktrees keep edits apart, but two tasks changing the same file can still conflict when they merge. Fleet notices the overlap while both are running, so the sessions can talk it through.
 - **A quiet view of what needs you.** A line above your prompt and a `/fleet-board` pane show PRs that are ready, red or in conflict, and any open questions. A small toast appears when something changes.
