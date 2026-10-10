@@ -10,16 +10,21 @@ describe('worst case', () => {
     on('ui.open', async () => ({ value: { isPlaced: true as const } }))
     await $.command.run({ command: 'fleet-board', args: 'worst', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 100 } })
     for (const surface of ['terminal', 'desktop'] as const) {
-      for (const width of [48, 100]) {
+      for (const width of [36, 48, 100]) {
         const ui = await $.ui.mount({ plugin: 'fleet', surface, ...pane(width) })
         expect(await ui.find({ text: /updated 2 h ago/ })).toBeDefined()
-        expect(await ui.find({ text: /Slow refresh: 23\.4s/ })).toBeDefined()
+        expect(await ui.find({ text: /took 23s/ })).toBeDefined()
         expect(await ui.find({ text: /^6\/5 running$/ })).toBeDefined()
         expect((await ui.find({ key: 'fold-queue-default' }))?.props.label).toBe('+8 more')
-        expect((await ui.drawn()) && (await ui.find({ text: /Load audit 7:/ }))).toBeUndefined()
-        expect(await ui.find({ type: 'Link', text: /pull\/239docs-site#239$/ })).toBeDefined()
-        expect(await ui.find({ type: 'Link', text: /pull\/1413mobile-app#1413$/ })).toBeDefined()
-        expect(await ui.find({ text: /^web#2000-cleanup-tooling$/ })).toBeDefined()
+        expect((await ui.drawn()) && (await ui.find({ text: /Performance pass 7:/ }))).toBeUndefined()
+        if (width === 36) {
+          expect(await ui.find({ text: /Shipping estimate shows 0/ })).toBeUndefined()
+          await ui.unmount()
+          continue
+        }
+        expect(await ui.find({ type: 'Link', text: /pull\/288docs-site#288$/ })).toBeDefined()
+        expect(await ui.find({ type: 'Link', text: /pull\/1977mobile-app#1977$/ })).toBeDefined()
+        expect(await ui.find({ text: /^web#3100-legacy-cleanup$/ })).toBeDefined()
         if (surface === 'terminal') expect(await ui.find({ text: /\+1$/ })).toBeDefined()
         expect(await ui.find({ text: /Needs you/ })).toBeDefined()
         expect(await ui.find({ text: /^6$/ })).toBeDefined()
