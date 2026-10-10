@@ -10,14 +10,14 @@ Queue the work, and fleet keeps five sessions busy: a freed slot gets the next t
 
 - **Delegate in one line.** Any session can hand off a task: `fleet enqueue --title "Fix the export timeout" --prompt-file task.md`.
 - **Never idle, never stampeded.** At most five run at once. A finished, blocked or merged task frees its slot, and the next one in the queue takes it.
-- **No collisions.** Fleet tracks which files every session has touched. When two overlap, they message each other before editing.
+- **Conflicts caught early, not at merge.** Worktrees keep edits apart, but two tasks rewriting the same file still collide when they land. Fleet sees the overlap while both are running and has the sessions sort it out.
 - **What needs you comes first.** A band above your prompt and a `/fleet-board` pane update every minute, and a toast pops when a PR turns green or red or a task asks you something.
 - **Dependencies and holds.** Make a task wait for another task or a PR to merge, freeze one project during a release, or push one task to the front.
 - **Hand over the dispatcher.** The brief, the task template and a daily journal live in the fleet, so a fresh session takes over the board in one command.
 
 ### "Can't I just open five sessions and tell each one to fix an issue?"
 
-Sure, if you enjoy being the bottleneck. You'd be the one noticing which session finished, picking the next issue, checking who touched which file, and refreshing five PR pages to see what went green. Fleet does all of that while you're out to lunch, and pings you when it actually needs a human.
+Sure, if you enjoy being the bottleneck. You'd be the one noticing which session finished, remembering which one was on which issue, picking the next issue, and refreshing five PR pages to see what went green. Fleet does all of that while you're out to lunch, and pings you when it actually needs a human.
 
 ## Install
 
