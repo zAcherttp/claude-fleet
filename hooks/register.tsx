@@ -29,6 +29,7 @@ const prTone: Record<PrState, 'success' | 'error' | 'warning' | 'merged' | 'subt
 
 const COL = { id: 7, state: 12, link: 16, pr: 16 } as const
 const QUEUE_SHOWN = 5
+const LINK_TAB = 18
 
 const shortLabel: Record<PrState, string> = { ready: 'ready', red: 'red', conflict: 'conflict', running: 'CI running', merged: 'merged', closed: 'closed', blocked: 'blocked', unknown: 'checking', skipped: 'no access' }
 
@@ -184,6 +185,7 @@ export const register: Register = on => {
     const idWidth = Math.max(COL.id, 3 + Math.max(0, ...(current.board?.running ?? []).map(t => t.id.length), ...(current.board?.queue ?? []).map(q => q.id.length)))
     const c = counts(current)
     const wide = (e.props.bodyColumns ?? 80) >= 72
+    const compact = (e.props.bodyColumns ?? 80) < 44
 
     let picker: RenderChildren = null
     if (e.surface !== 'mobile') {
@@ -194,23 +196,23 @@ export const register: Register = on => {
     let icon = (_kind: IconKind): RenderChildren => null
     if (e.surface === 'desktop') {
       const { Svg } = $.ui.resolve(e)
-      icon = (kind: IconKind) => <Box width={2} flexShrink={0}><Svg source={iconSvg(kind)} alt={kind} width={14} height={14} /></Box>
+      icon = (kind: IconKind) => <Box width={2} flexShrink={0} alignSelf="flex-start"><Svg source={iconSvg(kind)} alt={kind} width={14} height={14} /></Box>
       meter = (slot: Slot) => <Svg source={meterSvg(slot)} alt={`${slot.used} of ${slot.max} slots in use${slot.held ? ', held' : ''}`} height={10} />
     }
 
     const badge = (label: string, tone: string, width?: number, key?: string) => (
-      <Box key={key} width={width} flexShrink={0} backgroundColor={tone} paddingX={1} justifyContent="center">
+      <Box key={key} width={width} flexShrink={0} backgroundColor={tone} paddingX={1} flexDirection="column" justifyContent="center" alignItems="center">
         <Text color="inverseText" bold wrap="truncate-end">{label}</Text>
       </Box>
     )
     const indent = idWidth + 1 + (e.surface === 'desktop' ? 3 : 0) + COL.state + 1
     const cell = (width: number, child: RenderChildren, key?: string) => (
-      <Box key={key} width={width} flexShrink={0}>{child}</Box>
+      <Box key={key} width={width} flexShrink={0} alignSelf="flex-start">{child}</Box>
     )
     const prCells = (url: string | null, pr: PrInfo | undefined) =>
       wide
         ? [
-            cell(COL.link, url ? <Link href={url}>{prShort(url)}</Link> : <Text dimColor>—</Text>, 'link'),
+            cell(COL.link, url ? <Link href={url}>{prShort(url)}</Link> : <Text> </Text>, 'link'),
             url ? icon(pr?.state ?? 'unknown') : cell(2, <Text> </Text>, 'pr-icon'),
             url ? badge(prLabel[pr?.state ?? 'unknown'], prTone[pr?.state ?? 'unknown'], COL.pr, 'pr') : cell(COL.pr, <Text> </Text>, 'pr'),
           ]
@@ -225,17 +227,24 @@ export const register: Register = on => {
             {cell(idWidth, <Button key={`task-${task.id}`} label={`${isOpen ? '▾' : '▸'} ${task.id}`} plain onPress={() => void toggleRow($, task.id)} />)}
             {icon(stateIcon(task.state))}
             {badge(task.state, stateTone(task.state), COL.state)}
-            <Box flexGrow={1} flexShrink={1} minWidth={8}><Text wrap="truncate-end">{titleOf(task, current.titles)}</Text></Box>
+            {!compact && <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={8}>
+              <Text wrap="truncate-end">{titleOf(task, current.titles)}</Text>
+              {!wide && task.pr && (
+                <Box gap={1}>
+                  <Box width={LINK_TAB} flexShrink={1} minWidth={6} overflow="hidden"><Link href={task.pr}>{prShort(task.pr)}</Link></Box>
+                  <Box flexGrow={1} />
+                  {icon(pr?.state ?? 'unknown')}
+                  {badge(prLabel[pr?.state ?? 'unknown'], prTone[pr?.state ?? 'unknown'])}
+                  <Box width={1} flexShrink={0} />
+                </Box>
+              )}
+            </Box>}
             {prCells(task.pr, pr)}
           </Box>
-          {!wide && task.pr && (
-            <Box gap={1} paddingLeft={indent}>
-              <Link href={task.pr}>{prShort(task.pr)}</Link>
-              {badge(prLabel[pr?.state ?? 'unknown'], prTone[pr?.state ?? 'unknown'], COL.pr)}
-            </Box>
-          )}
           {isOpen && (
-            <Box flexDirection="column" paddingLeft={indent}>
+            <Box flexDirection="column" paddingLeft={compact ? 2 : indent}>
+              {compact && <Text wrap="wrap">{titleOf(task, current.titles)}</Text>}
+              {compact && task.pr && <Text><Link href={task.pr}>{prShort(task.pr)}</Link> <Text color={prTone[pr?.state ?? 'unknown']}>{prLabel[pr?.state ?? 'unknown']}</Text></Text>}
               <Text dimColor wrap="truncate-end">{task.key}</Text>
               {task.note && <Text wrap="wrap">{task.note}</Text>}
               {pr && pr.failing.length > 0 && <Text color="error" wrap="wrap">failing: {pr.failing.join(', ')}</Text>}
@@ -259,51 +268,55 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column" gap={1}>
-        <Box flexDirection="column">
-          <Box gap={1}>
+        <Box flexDirection="column" gap={1}>
+          <Box gap={1} flexWrap="wrap" alignItems="center">
             <Button key="refresh" plain onPress={() => void poll($)}>{current.refreshing ? 'Refreshing…' : 'Refresh'}</Button>
-            <Text dimColor wrap="truncate-end">updated {age}</Text>
+            <Text dimColor>updated {age}</Text>
+            {current.timings && current.timings.totalMs >= 5000 && (
+              <Text color="warning" hover={{ scope: 'slow-refresh', underline: true }}>· took {(current.timings.totalMs / 1000).toFixed(0)}s</Text>
+            )}
+            {picker}
           </Box>
-          {current.timings && current.timings.totalMs >= 5000 && (
-            <Text color="warning" wrap="wrap">Slow refresh: {(current.timings.totalMs / 1000).toFixed(1)}s (board {(current.timings.boardMs / 1000).toFixed(1)}s, {current.timings.prCount} PRs {(current.timings.prsMs / 1000).toFixed(1)}s)</Text>
-          )}
           {current.prError && <Text color="error" wrap="wrap">PR status unavailable: {current.prError}</Text>}
-          {c.net && <Text dimColor wrap="wrap">Net issues today: {c.net}</Text>}
           <Box gap={1} flexWrap="wrap">
             {badge(`${c.used}/${c.max} running`, c.used > c.max ? 'warning' : c.used === c.max ? 'subtle' : 'success', undefined, 's')}
-            {badge(`${ready} ready`, ready ? 'success' : 'subtle', undefined, 'r')}
-            {badge(`${red} red`, red ? 'error' : 'subtle', undefined, 'x')}
-            {badge(`${conflict} conflict`, conflict ? 'warning' : 'subtle', undefined, 'c')}
-            {badge(`${questions} question${questions === 1 ? '' : 's'}`, questions ? 'warning' : 'subtle', undefined, 'q')}
+            {ready > 0 && badge(`${ready} ready`, 'success', undefined, 'r')}
+            {red > 0 && badge(`${red} red`, 'error', undefined, 'x')}
+            {conflict > 0 && badge(`${conflict} conflict`, 'warning', undefined, 'c')}
+            {questions > 0 && badge(`${questions} question${questions === 1 ? '' : 's'}`, 'warning', undefined, 'q')}
           </Box>
-          {picker}
         </Box>
 
         <Box flexDirection="column" borderStyle="round" borderColor={plan.attention.length ? 'warning' : 'subtle'} paddingX={1}>
           {header('Needs you', plan.attention.length)}
           {plan.attention.length === 0 && <Text dimColor>Nothing waiting on you.</Text>}
           {plan.attention.map(item => (
-            <Box key={`att-${item.id}`} flexDirection="column" hover={{ scope: item.id, backgroundColor: 'subtle' }}>
-              <Box gap={1}>
-                {cell(idWidth, <Text bold>{item.id}</Text>)}
-                {icon(item.pr ? item.pr.state : 'question')}
-                {item.pr ? badge(shortLabel[item.pr.state], prTone[item.pr.state], COL.state) : badge('question', 'warning', COL.state)}
-                <Box flexGrow={1} flexShrink={1} minWidth={8}><Text wrap="truncate-end">{item.title}</Text></Box>
-                {item.pr && wide && cell(COL.link, <Link href={item.pr.url}>{prShort(item.pr.url)}</Link>)}
-                {item.scope !== 'default' && <Text dimColor>{item.scope}</Text>}
-              </Box>
-              {item.pr && (item.pr.failing.length > 0 || !wide) && (
-                <Box gap={1} paddingLeft={indent}>
-                  {!wide && <Link href={item.pr.url}>{prShort(item.pr.url)}</Link>}
-                  {item.pr.failing.length > 0 && <Text color="error" wrap="truncate-end">failing: {item.pr.failing.slice(0, 3).join(', ')}{item.pr.failing.length > 3 ? ` +${item.pr.failing.length - 3}` : ''}</Text>}
-                </Box>
-              )}
-              {item.note !== null && (
-                <Box gap={1} paddingLeft={indent}>
-                  {item.pr && <Text color="warning">question:</Text>}
-                  <Box flexShrink={1}><Text dimColor wrap="wrap">{item.note}</Text></Box>
-                </Box>
-              )}
+            <Box key={`att-${item.id}`} gap={1} hover={{ scope: item.id, backgroundColor: 'subtle' }}>
+              {cell(idWidth, <Text bold>{item.id}</Text>)}
+              {icon(item.pr ? item.pr.state : 'question')}
+              {item.pr ? badge(shortLabel[item.pr.state], prTone[item.pr.state], COL.state) : badge('question', 'warning', COL.state)}
+              {!compact && <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={8}>
+                <Text wrap="truncate-end">{item.title}</Text>
+                {item.pr && !wide && (
+                  <Box gap={1}>
+                    <Box width={LINK_TAB} flexShrink={1} minWidth={6} overflow="hidden"><Link href={item.pr.url}>{prShort(item.pr.url)}</Link></Box>
+                    <Box flexGrow={1} />
+                    {item.scope !== 'default' && <Text dimColor>{item.scope}</Text>}
+                    <Box width={1} flexShrink={0} />
+                  </Box>
+                )}
+                {!item.pr && !wide && item.scope !== 'default' && <Text dimColor>{item.scope}</Text>}
+                {item.pr && item.pr.failing.length > 0 && (
+                  <Text color="error" wrap="truncate-end">failing: {item.pr.failing.slice(0, 3).join(', ')}{item.pr.failing.length > 3 ? ` +${item.pr.failing.length - 3}` : ''}</Text>
+                )}
+                {item.note !== null && (
+                  <Box gap={1}>
+                    {item.pr && <Text color="warning">question:</Text>}
+                    <Box flexGrow={1} flexShrink={1} minWidth={8}><Text dimColor wrap="truncate-end">{item.note.replace(/\s+/g, ' ')}</Text></Box>
+                  </Box>
+                )}
+              </Box>}
+              {wide && cell(COL.link, item.pr ? <Link href={item.pr.url}>{prShort(item.pr.url)}</Link> : <Text dimColor wrap="truncate-end">{item.scope !== 'default' ? item.scope : ''}</Text>)}
             </Box>
           ))}
         </Box>
@@ -317,8 +330,15 @@ export const register: Register = on => {
               {card.slot.held && icon('held')}
               {card.slot.held && badge('held', 'warning', 6)}
             </Box>
-            {card.slot.held && card.slot.holdNote && <Text color="warning" wrap="wrap">{card.slot.holdNote}</Text>}
-            {card.running.length === 0 && <Text dimColor>Nothing running.</Text>}
+            {card.slot.held && card.slot.holdNote && (
+              <Box gap={1}>
+                <Button key={`hold-${card.slot.scope}`} label={open.includes(`hold-${card.slot.scope}`) ? '▾' : '▸'} plain onPress={() => void toggleSection($, `hold-${card.slot.scope}`)} />
+                <Box flexGrow={1} flexShrink={1} minWidth={8}>
+                  <Text color="warning" wrap={open.includes(`hold-${card.slot.scope}`) ? 'wrap' : 'truncate-end'}>{card.slot.holdNote}</Text>
+                </Box>
+              </Box>
+            )}
+            {card.running.length === 0 && card.queue.length === 0 && <Text dimColor>Empty.</Text>}
             {card.running.map(taskRow)}
             {card.queue.length > 0 && (
               <Box flexDirection="column" marginTop={1}>
@@ -328,7 +348,7 @@ export const register: Register = on => {
                     {cell(idWidth, <Text dimColor>{q.position}. {q.id}</Text>)}
                     {icon('queued')}
                     {badge('queued', 'subtle', COL.state)}
-                    <Box flexGrow={1} flexShrink={1} minWidth={8}><Text wrap="truncate-end">{q.title}</Text></Box>
+                    {!compact && <Box flexGrow={1} flexShrink={1} minWidth={8}><Text wrap="truncate-end">{q.title}</Text></Box>}
                   </Box>
                 ))}
                 {card.queue.length > QUEUE_SHOWN && (
@@ -339,28 +359,43 @@ export const register: Register = on => {
           </Box>
         ))}
 
-        {plan.waiting.length > 0 && (
-          <Box flexDirection="column">
-            <Button key="fold-waiting" label={`${open.includes('waiting') ? '▾' : '▸'} Waiting on another task or PR · ${plan.waiting.length}`} plain onPress={() => void toggleSection($, 'waiting')} />
+        {(plan.waiting.length > 0 || plan.verifying.length > 0) && (
+          <Box flexDirection="column" borderStyle="round" borderColor="subtle" paddingX={1}>
+            {plan.waiting.length > 0 && (
+              <Button key="fold-waiting" label={`${open.includes('waiting') ? '▾' : '▸'} Waiting on another task or PR · ${plan.waiting.length}`} plain onPress={() => void toggleSection($, 'waiting')} />
+            )}
             {open.includes('waiting') && plan.waiting.map(w => (
-              <Box key={`w-${w.id}`} gap={1} paddingLeft={2}>
-                {cell(idWidth, <Text bold>{w.id}</Text>)}
-                <Box flexGrow={1} flexShrink={1}><Text wrap="wrap">{w.title} <Text dimColor>after {w.after}</Text></Text></Box>
+              <Box key={`w-${w.id}`} gap={1}>
+                {cell(idWidth, <Text>{w.id}</Text>)}
+                {icon('running')}
+                {badge('waiting', 'subtle', COL.state)}
+                {!compact && (
+                  <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={8}>
+                    <Text wrap="truncate-end">{w.title}</Text>
+                    <Text dimColor wrap="truncate-end">after {w.after.split(', ').map(ref => ref.replace(/^[^/]+\//, '')).join(', ')}</Text>
+                  </Box>
+                )}
               </Box>
             ))}
-          </Box>
-        )}
-        {plan.verifying.length > 0 && (
-          <Box flexDirection="column">
-            <Button key="fold-verifying" label={`${open.includes('verifying') ? '▾' : '▸'} Verifying after merge · ${plan.verifying.length}`} plain onPress={() => void toggleSection($, 'verifying')} />
+            {plan.verifying.length > 0 && (
+              <Button key="fold-verifying" label={`${open.includes('verifying') ? '▾' : '▸'} Verifying after merge · ${plan.verifying.length}`} plain onPress={() => void toggleSection($, 'verifying')} />
+            )}
             {open.includes('verifying') && plan.verifying.map(v => (
-              <Box key={`v-${v.id}`} gap={1} paddingLeft={2}>
-                {cell(idWidth, <Text bold>{v.id}</Text>)}
-                <Box flexGrow={1} flexShrink={1}><Text dimColor wrap="wrap">{v.key}: {v.note ?? ''}</Text></Box>
+              <Box key={`v-${v.id}`} gap={1}>
+                {cell(idWidth, <Text>{v.id}</Text>)}
+                {icon('merged')}
+                {badge('verifying', 'merged', COL.state)}
+                {!compact && (
+                  <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={8}>
+                    <Text wrap="truncate-end">{v.key.replace(/^[^/]+\//, '')}</Text>
+                    {v.note && <Text dimColor wrap="truncate-end">{v.note}</Text>}
+                  </Box>
+                )}
               </Box>
             ))}
           </Box>
         )}
+        {c.net && <Text dimColor wrap="wrap">Net issues today: {c.net}</Text>}
       </Box>
     )
   })

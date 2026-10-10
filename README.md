@@ -35,7 +35,7 @@ without them stepping on each other.
   for you, a mergeable PR, verifying in production, or done. `next`, `enqueue`
   and `sweep` also requeue launches nobody joined, mark a task whose worktree is
   gone `lost`, and mark the older of two tasks recording one worktree `stale`.
-- **Net issues per task.** `fleet state <id> done --closed lms#1 --filed lms#2`
+- **Net issues per task.** `fleet state <id> done --closed web#1 --filed web#2`
   (or `working --filed …` mid-task) records what a task closed and filed;
   `board` and `journal` show today's net per project, so a task that grows the
   backlog shows while it runs.
@@ -93,6 +93,8 @@ in the Claude desktop app the fallback is one task chip per launch.
   "no access" rather than failing the refresh.
 
 ### The board
+
+![The fleet board in Claude Code's desktop app, showing the synthetic worst-case data](docs/board.png)
 
 The pane lists what needs you first (a PR that is ready to merge, red or in
 conflict, and every task with a question), then one card per scope with its

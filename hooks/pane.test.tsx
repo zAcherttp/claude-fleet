@@ -3,7 +3,7 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import type { View } from '../types'
 import { classifyPr, layout, parseBoard } from './model'
 
-const URL = 'https://github.com/northwind-industries/web/pull/2146'
+const URL = 'https://github.com/northwind-industries/web/pull/4146'
 
 const boardJson = JSON.stringify({
       slots: [
@@ -12,44 +12,44 @@ const boardJson = JSON.stringify({
         { scope: 'release-freeze', used: 0, max: 2, held: { note: 'Release freeze: no mobile-app merges', at: 1 } },
       ],
       running: [
-        { id: 't249', scope: 'default', key: 'northwind-industries/web#2000-courses', label: 'Delete v1 course routes', state: 'mergeable', pr: URL, note: null },
-        { id: 't256', scope: 'default', key: 'northwind-industries/web#2151', label: 't256', state: 'launching', pr: null, note: null },
-        { id: 't113', scope: 'coursework', key: 'university-team-7/game#poc', label: 'POC handoff setup', state: 'question', pr: null, note: 'paused for polish' },
+        { id: 't401', scope: 'default', key: 'northwind-industries/web#3100-photos', label: 'Archive old product photos', state: 'mergeable', pr: URL, note: null },
+        { id: 't403', scope: 'default', key: 'northwind-industries/web#3151', label: 't403', state: 'launching', pr: null, note: null },
+        { id: 't406', scope: 'coursework', key: 'university-team-7/game#editor', label: 'Level editor hand-off', state: 'question', pr: null, note: 'paused for polish' },
       ],
       queue: [
-        { scope: 'default', position: 1, id: 't257', key: 'k', title: 'School Admin time zone' },
-        { scope: 'release-freeze', position: 1, id: 't240', key: 'k', title: 'Mobile onboarding screen' },
+        { scope: 'default', position: 1, id: 't407', key: 'k', title: 'Store time zone setting' },
+        { scope: 'release-freeze', position: 1, id: 't408', key: 'k', title: 'Mobile onboarding screen' },
       ],
       waiting: [],
-      verifying: [{ id: 't196', key: 'northwind-industries/web#2078', pr: null, note: 'awaiting deploy' }],
+      verifying: [{ id: 't405', key: 'northwind-industries/web#2078', pr: null, note: 'awaiting deploy' }],
       net: [{ project: 'web', filed: ['a'], closed: [], net: 1 }],
 })
 
-const prJson = JSON.stringify({ number: 2146, title: 't', state: 'OPEN', mergeStateStatus: 'CLEAN', statusCheckRollup: [] })
-const graphJson = JSON.stringify({ data: { r0: { pr2146: { number: 2146, title: 't', state: 'OPEN', mergeStateStatus: 'CLEAN', commits: { nodes: [{ commit: { statusCheckRollup: { contexts: { nodes: [{ __typename: 'CheckRun', name: 'ci', status: 'COMPLETED', conclusion: 'SUCCESS' }] } } } }] } } } } })
+const prJson = JSON.stringify({ number: 4146, title: 't', state: 'OPEN', mergeStateStatus: 'CLEAN', statusCheckRollup: [] })
+const graphJson = JSON.stringify({ data: { r0: { pr4146: { number: 4146, title: 't', state: 'OPEN', mergeStateStatus: 'CLEAN', commits: { nodes: [{ commit: { statusCheckRollup: { contexts: { nodes: [{ __typename: 'CheckRun', name: 'ci', status: 'COMPLETED', conclusion: 'SUCCESS' }] } } } }] } } } } })
 
 const fixture = (): View => {
   const board = parseBoard(boardJson)
-  const pr = classifyPr(URL, JSON.stringify({ number: 2146, title: 't', state: 'OPEN', mergeStateStatus: 'CLEAN', statusCheckRollup: [] }))
-  return { board, prs: { [URL]: pr }, titles: { t256: 'Fix the learner walks' }, updatedAt: 0, error: null }
+  const pr = classifyPr(URL, JSON.stringify({ number: 4146, title: 't', state: 'OPEN', mergeStateStatus: 'CLEAN', statusCheckRollup: [] }))
+  return { board, prs: { [URL]: pr }, titles: { t403: 'Fix the checkout walkthrough' }, updatedAt: 0, error: null }
 }
 
 describe('layout', () => {
   test('groups tasks by scope, keeps each queue apart, and names a launching task by its title', async () => {
     const plan = layout(fixture(), 'all')
     expect(plan.cards.map(c => [c.slot.scope, c.running.map(t => t.id), c.queue.map(q => q.id)])).toEqual([
-      ['default', ['t249', 't256'], ['t257']],
-      ['coursework', ['t113'], []],
-      ['release-freeze', [], ['t240']],
+      ['default', ['t401', 't403'], ['t407']],
+      ['coursework', ['t406'], []],
+      ['release-freeze', [], ['t408']],
     ])
-    expect(plan.attention.map(a => `${a.pr ? 'pr' : 'question'}:${a.id}`)).toEqual(['pr:t249', 'question:t113'])
+    expect(plan.attention.map(a => `${a.pr ? 'pr' : 'question'}:${a.id}`)).toEqual(['pr:t401', 'question:t406'])
     expect(plan.cards[2]?.slot.holdNote).toBe('Release freeze: no mobile-app merges')
   })
 
   test('the scope filter narrows every section', async () => {
     const plan = layout(fixture(), 'coursework')
     expect(plan.cards.map(c => c.slot.scope)).toEqual(['coursework'])
-    expect(plan.attention.map(a => a.id)).toEqual(['t113'])
+    expect(plan.attention.map(a => a.id)).toEqual(['t406'])
     expect(plan.verifying).toEqual([])
   })
 })
@@ -73,13 +73,13 @@ describe('pane', () => {
       const ui = await $.ui.mount({ plugin: 'fleet', surface, ...PANE })
       expect(await ui.find({ text: /^Needs you$/ })).toBeDefined()
       expect(await ui.find({ text: /^1 ready$/ })).toBeDefined()
-      expect(await ui.find({ text: /web#2151/ })).toBeDefined()
+      expect(await ui.find({ text: /web#3151/ })).toBeDefined()
       expect(await ui.find({ text: /ready to merge/ })).toBeDefined()
       expect(await ui.find({ text: /Release freeze: no mobile-app merges/ })).toBeDefined()
-      expect(await ui.find({ text: /university-team-7\/game#poc/ })).toBeUndefined()
-      await ui.press({ key: 'task-t113' })
-      expect(await ui.find({ text: /university-team-7\/game#poc/ })).toBeDefined()
-      await ui.press({ key: 'task-t113' })
+      expect(await ui.find({ text: /university-team-7\/game#editor/ })).toBeUndefined()
+      await ui.press({ key: 'task-t406' })
+      expect(await ui.find({ text: /university-team-7\/game#editor/ })).toBeDefined()
+      await ui.press({ key: 'task-t406' })
       await ui.unmount()
     }
   })
