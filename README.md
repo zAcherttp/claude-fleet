@@ -20,6 +20,10 @@ You queue the work; fleet starts the next task when a session frees up, and keep
 
 You can, and for two or three tasks that works well. Past that, you tend to become the bottleneck: noticing which session finished, remembering which one had which issue, choosing what comes next, and checking each PR for its status. Fleet takes care of that bookkeeping and lets you know when a person is actually needed.
 
+### A note before installing
+
+Fleet is ephemeral software. It was written for one person's day-to-day work and changes as that work changes. Commands, file formats and the board may shift between versions without a migration path, and parts of it may be retired once Claude Code does the same job natively. If you depend on it, pin a version and read the release notes before updating.
+
 ## Install
 
 ```bash
