@@ -198,11 +198,17 @@ the role and the old one can be archived:
 
 ### Reaching a session
 
-- **Message a session by its id** (`SendMessage` to the id): the `notify` that
-  `join` returns, the id a prompt names, or the one the board shows. A name from
-  `ListAgents` also works, but `ListAgents` lists only some sessions on the
-  machine. A session missing from it is not offline, and neither is one that
-  answers no name.
+- **Use the app's session tools when you have them.** In the Claude desktop app,
+  the session-management tools (`list_sessions` and `send_message`, served as
+  `mcp__ccd_session_mgmt__*`; load them with ToolSearch if they are deferred)
+  see every local session with its running state, and deliver to any session
+  id, queueing the message until that session's turn is free. `ListAgents` and
+  `SendMessage` reach only the peers that registered with them, so a session
+  missing from `ListAgents` is not offline, and a name it doesn't know is not a
+  dead session.
+- **Message a session by its id**: the `notify` that `join` returns, the id a
+  prompt names, or the one `list_sessions` shows. Without the app's tools,
+  `SendMessage` to the id or the `ListAgents` name.
 - **A send that lands in the session's inbox is delivered**, even when it says
   "not yet read", "queued" or "holding it": that session reads it when its
   current turn ends. Don't conclude it is offline, and don't take its silence as
