@@ -163,10 +163,15 @@ the role and the old one can be archived:
    queue, and today's net issues. Files touched are read live from each
    worktree's git state, so they are never stale.
 3. **Overlap → message before editing.** A file on another session's list:
-   message that session by name (`SendMessage`, names from `ListAgents`), agree
-   who takes it, and wait for the answer. Never edit it silently.
+   message that session (see *Reaching a session* below), agree who takes it,
+   and wait for the answer. Never edit it silently.
 4. **Questions stay here.** Ask the user in this session; do not relay through
-   another session. Before ending the turn on a question:
+   another session. A question about coordination (whose turn it is, who takes
+   a file, a shared resource) goes to the session that coordinates it, never to
+   the user. Write the user's question as text and end the turn, not with
+   `AskUserQuestion`: a pending `AskUserQuestion` keeps the turn open, and every
+   message sent to this session (a go, a hand-off, an answer) waits behind it
+   until the user replies. Before ending the turn on a question:
    `fleet state <id> question --note "<the question, one line>"` — this frees
    your slot; launch any `launch` it returns and send any `nudge`.
 5. **Open the PR the repo's way** (its CLAUDE.md or PR skill), with CI auto-fix
@@ -190,6 +195,22 @@ the role and the old one can be archived:
 8. **Resuming after an answer:** `fleet state <id> working` first. If the pool is
    full it still records you — the slot count may briefly exceed `max`; that is
    the only way a halted session gets back to work.
+
+### Reaching a session
+
+- **Message a session by its id** (`SendMessage` to the id): the `notify` that
+  `join` returns, the id a prompt names, or the one the board shows. A name from
+  `ListAgents` also works, but `ListAgents` lists only some sessions on the
+  machine. A session missing from it is not offline, and neither is one that
+  answers no name.
+- **A send that lands in the session's inbox is delivered**, even when it says
+  "not yet read", "queued" or "holding it": that session reads it when its
+  current turn ends. Don't conclude it is offline, and don't take its silence as
+  a yes. Keep working on what doesn't depend on the answer, or end your turn
+  (your state stays `working`), and the reply starts your next turn.
+- **Waiting on a peer is not a question for the user.** Don't move to `question`
+  or ask the user whether to go ahead without the peer's answer. Only a send
+  that fails outright (no such session) goes to the user.
 
 ## After the merge — every session, every time
 
