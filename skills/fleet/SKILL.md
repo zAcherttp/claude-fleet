@@ -142,6 +142,17 @@ the role and the old one can be archived:
 
 ## Inside a fleet session
 
+0. **Checklist before anything else.** Your first tool call posts a live
+   checklist: `update_plan` (the desktop app's task list), or `TodoWrite` where
+   that is the tool you have. Start from these items: join fleet and read the
+   rules, plan, build, verify, ship, report back to the dispatcher. Split or
+   rename them to fit the task, but keep one item for verifying and one for
+   reporting back, and keep the list current as you work. A PreToolUse hook
+   refuses `fleet state <id> mergeable` and `fleet state <id> done` while any
+   item is open and lists the open items. So mark every item completed in a
+   message before the one that runs either command. A session that never posted
+   a checklist (older sessions, other hosts) is let through with a warning.
+   `question`, `verifying` and `working` are never gated.
 1. **Join first.** `fleet join <id> ...` with your session id and name (the
    session-info tool gives both). A SessionStart hook reminds you which task
    you are when you resume. **If join refuses because another session already
@@ -247,10 +258,10 @@ databases are never yours to clean.
 | `fleet bump <id>` | move a queued task to the head of its scope's queue |
 | `fleet hold [--scope] [--note]` / `fleet unhold [--scope]` | stop / resume promotion in a scope |
 | `fleet join <id> --session --name --worktree [--takeover]` | bind this session to its task; refused while another session holds it |
-| `fleet state <id> working\|question\|mergeable\|verifying\|done [--note] [--pr] [--closed] [--filed]` | report; halting states free the slot and return `launch` / `nudge` |
+| `fleet state <id> working\|question\|mergeable\|verifying\|done [--note] [--pr] [--closed] [--filed]` | report; halting states free the slot and return `launch` / `nudge`; `mergeable` and `done` are refused while this session's checklist has open items |
 | `fleet release <id>` | give a task up unfinished; tell the `notify` session why |
 | `fleet events [--project \| --scope] [--since <cursor>] [--for <session>]` | what happened since the cursor; `--for` keeps the cursor and claims pending launches |
-| `fleet prompt <id>` | the full launch text for a task |
+| `fleet prompt <id>` | the full launch text for a task: the checklist instruction, the join header, the stored prompt |
 | `fleet board [--scope \| --all] [--json]` | slots, running sessions, overlaps, verifying, waiting, queue, net issues today |
 | `fleet journal [--project \| --scope] [--days]` | what happened, bucketed by day, with today's net issues |
 | `fleet note --project --text` | add a decision, hand-off or blocker to the journal |
@@ -259,12 +270,13 @@ databases are never yours to clean.
 | `fleet sweep [--scope] [--for]` | release waits, requeue launches nobody joined or claimed, mark gone worktrees `lost` and shared ones `stale` |
 | `fleet config [--max n] [--launch-timeout-min n]` | pool settings (`max` sizes the `default` scope) |
 | `fleet config --scope <s> [--projects a,b] [--paths dir] [--max n] [--remove]` | define, resize or remove a scope |
-| `fleet --self-test` | prove the pool, queue, routing, waits, events, scope, lock and overlap rules still hold |
+| `fleet --self-test` | prove the pool, queue, routing, waits, events, scope, lock, overlap and checklist-gate rules still hold |
 
 States: `waiting → queued → launching → working → question | mergeable →
 verifying → done`, plus `released` (given up), `lost` (worktree deleted) and
 `stale` (another task joined the same worktree). Only `launching` and `working`
-count against the pool.
+count against the pool. A session reaches `mergeable` or `done` only with every
+checklist item completed; the other states are never gated.
 
 State lives in `$FLEET_HOME` (default `~/.fleet`), one JSON file per task, written
 atomically under a lock that a dead process cannot hold forever.

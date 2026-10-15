@@ -59,13 +59,14 @@ queue (2)
 - `skills/fleet` teaches Claude when to enqueue, launch, join, report state and clean up after a merge.
 - `hooks/register.tsx` is a Claude Code mod that draws the board. It reads the board and **one** batched GraphQL query for every PR (about a second), and shows "no access" for repos your `gh` account can't read.
 - A task moves through `waiting → queued → launching → working → question | mergeable → verifying → done`. Only `launching` and `working` take a slot.
+- Every launch prompt opens by asking the session to post a live checklist (`update_plan` in the desktop app, `TodoWrite` in the terminal) with an item for verifying and one for reporting back. A `PreToolUse` hook (`fleet hook-plan-gate`) reads the session's transcript and refuses `fleet state <id> mergeable` and `fleet state <id> done` while any item is open, listing them. A session with no checklist is let through with a warning, and `question`, `verifying` and `working` are never gated.
 
 </details>
 
 <details>
 <summary>Tested</summary>
 
-`fleet --self-test` runs 53 checks on Linux, macOS and Windows in CI: the pool limit, queue order, held tasks, dependencies, locks, hand-over and six concurrent enqueues producing exactly one task. `claude plugin test .` runs 20 board tests on the terminal and the desktop at 36, 48 and 100 columns, including a worst-case board (`FLEET_BOARD_FIXTURES=1`, `/fleet-board worst`) and a plain message for each way a refresh can fail.
+`fleet --self-test` runs 65 checks on Linux, macOS and Windows in CI: the pool limit, queue order, held tasks, dependencies, locks, hand-over, six concurrent enqueues producing exactly one task, and the checklist gate against synthetic transcripts in `lib/fixtures`. `claude plugin test .` runs 20 board tests on the terminal and the desktop at 36, 48 and 100 columns, including a worst-case board (`FLEET_BOARD_FIXTURES=1`, `/fleet-board worst`) and a plain message for each way a refresh can fail.
 
 </details>
 

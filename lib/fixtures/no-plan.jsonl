@@ -1,0 +1,4 @@
+{"type":"user","uuid":"u35","sessionId":"s-fixture","isSidechain":false,"message":{"role":"user","content":[{"type":"text","text":"Build the widget."}]}}
+{"type":"assistant","uuid":"u36","sessionId":"s-fixture","isSidechain":false,"message":{"role":"assistant","content":[{"type":"text","text":"Built it; nothing to track."}]}}
+{"type":"assistant","uuid":"u37","sessionId":"s-fixture","isSidechain":false,"message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"ls"}}]}}
+{"type":"user","uuid":"u38","sessionId":"s-fixture","isSidechain":false,"message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"text","text":"README.md"}],"is_error":false}]}}
