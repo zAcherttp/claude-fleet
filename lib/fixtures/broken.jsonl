@@ -1,0 +1,2 @@
+{"type":"user","uuid":"u39","sessionId":"s-fixture","isSidechain":false,"message":{"role":"user","content":[{"type":"text","text":"Build the widget."}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_1","name":"mcp__ccd_turn__update_plan","input":{"items":[{"content":"Build"
