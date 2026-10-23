@@ -12,7 +12,7 @@ You queue the work; fleet starts the next task when a session frees up, and keep
 - **Keeping things moving.** A few sessions run at once. When one finishes, stops to ask you something or opens a PR, the next task can start. The default of five is simply what one laptop handles comfortably; raise or lower it with `fleet config --max <n>`, per scope if you like.
 - **Sessions that know about each other.** Each session can see the board, so if you send a message to the wrong one, it will usually point you to the session that owns that task and offer to pass the message on.
 - **Overlaps noticed early.** Worktrees keep edits apart, but two tasks changing the same file can still conflict when they merge. Fleet notices the overlap while both are running, so the sessions can talk it through.
-- **A quiet view of what needs you.** A line above your prompt and a `/fleet-board` pane show PRs that are ready, red or in conflict, and any open questions. A small toast appears when something changes.
+- **A quiet view of what needs you.** `/fleet-board` opens a pane and a line above your prompt that show PRs that are ready, red or in conflict, and any open questions. A small toast appears when something changes. The board is off until you open it: nothing is drawn and nothing is polled before the first `/fleet-board` in a session, and polling stops again once the pane is closed and the line is hidden. Set `FLEET_BOARD=on` in the environment to show the line and poll from the start of every session.
 - **Waiting and pausing.** A task can wait for another task or for a PR to merge, a project can be held during a release, and one task can be moved to the front.
 - **Picking up where you left off.** The brief, the task template and a daily journal are kept with the fleet, so a new session can take over the coordinating role.
 
@@ -57,7 +57,7 @@ queue (2)
 
 - `bin/fleet` keeps one JSON file per task in `~/.fleet`, written atomically under a lock that recovers from a crashed holder.
 - `skills/fleet` teaches Claude when to enqueue, launch, join, report state and clean up after a merge.
-- `hooks/register.tsx` is a Claude Code mod that draws the board. It reads the board and **one** batched GraphQL query for every PR (about a second), and shows "no access" for repos your `gh` account can't read.
+- `hooks/register.tsx` is a Claude Code mod that draws the board. It reads the board and **one** batched GraphQL query for every PR (about a second), and shows "no access" for repos your `gh` account can't read. It refreshes once a minute, only while the pane is open or the line above the prompt is shown.
 - A task moves through `waiting → queued → launching → working → question | mergeable → verifying → done`. Only `launching` and `working` take a slot.
 - Every launch prompt opens by asking the session to post a live checklist (`update_plan` in the desktop app, `TodoWrite` in the terminal) with an item for verifying and one for reporting back. A `PreToolUse` hook (`fleet hook-plan-gate`) reads the session's transcript and refuses `fleet state <id> mergeable` and `fleet state <id> done` while any item is open, listing them. A session with no checklist is let through with a warning, and `question`, `verifying` and `working` are never gated.
 
@@ -66,7 +66,7 @@ queue (2)
 <details>
 <summary>Tested</summary>
 
-`fleet --self-test` runs 65 checks on Linux, macOS and Windows in CI: the pool limit, queue order, held tasks, dependencies, locks, hand-over, six concurrent enqueues producing exactly one task, and the checklist gate against synthetic transcripts in `lib/fixtures`. `claude plugin test .` runs 20 board tests on the terminal and the desktop at 36, 48 and 100 columns, including a worst-case board (`FLEET_BOARD_FIXTURES=1`, `/fleet-board worst`) and a plain message for each way a refresh can fail.
+`fleet --self-test` runs 65 checks on Linux, macOS and Windows in CI: the pool limit, queue order, held tasks, dependencies, locks, hand-over, six concurrent enqueues producing exactly one task, and the checklist gate against synthetic transcripts in `lib/fixtures`. `claude plugin test .` runs 24 board tests on the terminal and the desktop at 36, 48 and 100 columns, including a worst-case board (`FLEET_BOARD_FIXTURES=1`, `/fleet-board worst`), a plain message for each way a refresh can fail, and the opt-in: no line and no poll by default, both after `/fleet-board`, both from the start with `FLEET_BOARD=on`, and no poll once the line is hidden with no pane up.
 
 </details>
 
