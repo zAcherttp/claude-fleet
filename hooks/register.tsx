@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, RenderChildren } from 'claude-code'
+import type { EngineInterface, Register, RenderChildren, Timer } from 'claude-code'
 
 import type { PrInfo, PrState, RunningTask, Slot, View } from '../types'
 import type { IconKind, PrRef, RunOutcome } from './model'
@@ -9,7 +9,7 @@ import { bandLine, changes, classifyPr, counts, emptyView, layout, meterSvg, met
 const PANE = 'fleet-board'
 const POLL_MS = 60_000
 const view = atom({ plugin: 'fleet', key: 'view' } as const, emptyView)
-const isBandHidden = atom({ plugin: 'fleet', key: 'isBandHidden' } as const, false)
+const isBandHidden = atom({ plugin: 'fleet', key: 'isBandHidden' } as const, true)
 const expanded = atom({ plugin: 'fleet', key: 'expanded' } as const, [] as string[])
 const scopeFilter = atom({ plugin: 'fleet', key: 'scopeFilter' } as const, 'all')
 const fixture = atom({ plugin: 'fleet', key: 'fixture' } as const, 'live')
@@ -44,6 +44,7 @@ const stateTone = (state: string) =>
 
 let busy = false
 let again = false
+let timer: Timer | null = null
 
 const QUIET_ENV = { GH_NO_UPDATE_NOTIFIER: '1', GH_PROMPT_DISABLED: '1', NO_COLOR: '1' }
 
@@ -110,6 +111,26 @@ async function poll($: EngineInterface) {
   }
 }
 
+function startPolling($: EngineInterface) {
+  if (timer === null) timer = $.clock.every(POLL_MS, () => void poll($))
+}
+
+async function paneIsUp($: EngineInterface) {
+  return (await $.ui.panes()).some(pane => pane.id === PANE)
+}
+
+async function stopUnlessShown($: EngineInterface, paneClosing: boolean) {
+  if (timer === null || !(await read($, isBandHidden))) return
+  if (!paneClosing && (await paneIsUp($))) return
+  timer.cancel()
+  timer = null
+}
+
+async function hideBand($: EngineInterface) {
+  await update($, isBandHidden, () => true)
+  await stopUnlessShown($, false)
+}
+
 const flip = (ids: string[], id: string) => (ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])
 
 let savedColumns: number | null = null
@@ -140,9 +161,18 @@ async function toggleSection($: EngineInterface, id: string) {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'fleet-board', description: 'Open the live fleet board (slots, tasks, PR readiness, queue)' })
-    $.clock.every(POLL_MS, () => void poll($))
-    void poll($)
+    if ((await $.env.get('FLEET_BOARD')) === 'on') await update($, isBandHidden, () => false)
+    if (!(await read($, isBandHidden)) || (await paneIsUp($))) {
+      startPolling($)
+      void poll($)
+    }
     return next(e)
+  })
+
+  on('ui.close', async ($, e, next) => {
+    const result = await next(e)
+    if (e.id === PANE) await stopUnlessShown($, true)
+    return result
   })
 
   on('command.run', { command: 'fleet-board' }, async ($, e) => {
@@ -153,6 +183,7 @@ export const register: Register = on => {
       return { text: arg === 'worst' ? 'Fleet board: showing the worst-case fixture. /fleet-board live to go back.' : 'Fleet board: showing live data.' }
     }
     await update($, isBandHidden, () => false)
+    startPolling($)
     await poll($)
     await openPane($)
     return { text: 'Fleet board opened.' }
@@ -167,7 +198,7 @@ export const register: Register = on => {
       <Box gap={1}>
         <Text color={c.red || c.conflict ? 'warning' : c.ready ? 'success' : 'subtle'} wrap="truncate-end">{bandLine(current)}</Text>
         <Button key="open" plain onPress={() => void openPane($)}>board</Button>
-        <Button key="hide" plain onPress={() => void update($, isBandHidden, () => true)}>hide</Button>
+        <Button key="hide" plain onPress={() => void hideBand($)}>hide</Button>
       </Box>
     )
   })
