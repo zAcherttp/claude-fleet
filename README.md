@@ -1,5 +1,13 @@
 # claude-fleet
 
+> **Retired, 2026-10-26.** The Claude Code desktop app now does most of what this plugin was for:
+> one session can start another (`start_session`), the linked-sessions list shows who started what and how each is doing, a
+> session reports back when it ends a turn, and `SendMessage` reaches any session by its id. I no longer use fleet,
+> and there will be no more releases. 0.6.5 is the last version; it still installs, but nobody maintains it.
+>
+> The app has no equivalent for these: the queue and pool limit, tasks that wait on another task or a PR, held
+> projects, file-overlap warnings, and the checklist gate. If you rely on one of them, pin 0.6.5.
+
 A small helper for running a few Claude Code sessions side by side, one task each.
 
 ![The fleet board in Claude Code](docs/board.png)
